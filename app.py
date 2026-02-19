@@ -53,7 +53,7 @@ page = st.sidebar.radio("Go to", ["Login", "Explanation", "Practice", "Leaderboa
 # --- PAGE LOGIC ---
 if page == "Login":
     st.title("🔐 Agent Login")
-    agent_name = st.text_input("Enter your Full Name or Agent ID:", placeholder="e.g. John Doe")
+    agent_name = st.text_input("Enter your Full Name", placeholder="e.g. John Doe")
 
     if st.button("Login"):
         if agent_name:
