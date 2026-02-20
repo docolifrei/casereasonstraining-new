@@ -134,8 +134,8 @@ Subscription & Sales,Churn,Call Center,Request to churn from Call Center
 ,Expansion,Call Center,Request to purchase Call Center
 ,,Clinic Agenda,Request to purchase Clinic Agenda
 ,,DP Phone,Request to purchase DP Phone
-,,First Class,Request to purchase Media 360
-,,M360,Request to purchase First Class
+,,First Class,Request to purchase First Class
+,,M360,Request to purchase Media 360
 ,,Noa,Request to purchase Noa Notes
 ,,Website,Request to purchase Website
 ,,Subscription Tier,Request to upgrade their Subscription
