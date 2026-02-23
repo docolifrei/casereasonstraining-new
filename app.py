@@ -308,7 +308,12 @@ elif page == "Leaderboard":
 
 elif page == "Admin Dashboard":
     st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-    st.header("⚙️ System Management")
+    st.header("⚙️ Admin Management Console")
+
+    if st.button("🔄 Force GCP Cloud SSync"):
+        st.cache_data.clear()
+        st.success("Cache cleared. Fetching fresh data from Google Sheets...")
+        st.rerun()
 
     col1, col2, col3 = st.columns(3)
 
