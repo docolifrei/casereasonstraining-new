@@ -3,6 +3,11 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 import streamlit as st
 
+# --- INITIALIZE SESSION STATE ---
+if 'role' not in st.session_state: st.session_state.role = None
+if 'user' not in st.session_state: st.session_state.user = None
+if 'country' not in st.session_state: st.session_state.country = None
+
 # --- PREMIUM GLASS UI & FONT CONFIGURATION ---
 def apply_premium_ui():
     st.markdown("""
@@ -47,24 +52,16 @@ def save_score(name, score):
         asterisk_count = 0
 
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
+        # Use the global connection already defined
         existing_data = conn.read(ttl=0)
 
-        # Store as a number so we can process it visually later
+        # Store the numeric count for the logo display
         new_entry = pd.DataFrame([[name, score, asterisk_count]],
                                  columns=['Name', 'Score', 'Asterisks'])
         updated_data = pd.concat([existing_data, new_entry], ignore_index=True)
         conn.update(data=updated_data)
 
-        # Visual feedback for the agent using the logo
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.write(f"### Achievement Unlocked!")
-        cols = st.columns(5)
-        for i in range(asterisk_count):
-            with cols[i]:
-                # Adjust 'dp_logo.png' to your actual filename
-                st.image("dp_logo.png", width=50)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.success(f"Score saved! You earned {asterisk_count} Docplanner Logos.")
 
     except Exception as e:
         st.error(f"Sync Error: {e}")
@@ -113,9 +110,7 @@ if st.session_state.role == "admin":
 else:
     menu = ["Login", "Explanation", "Practice", "Leaderboard"]
 
-# --- PAGE LOGIC ---
-if 'role' not in st.session_state: st.session_state.role = None
-if 'country' not in st.session_state: st.session_state.country = None
+
 
 if page == "Login":
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
@@ -188,6 +183,13 @@ elif page == "Practice":
         st.warning("Please log in first!")
         st.stop()
 
+    # Filter data by the country selected at login
+    if st.session_state.country != "Global":
+        # This assumes your CSV has a 'Country' column.
+        # If not, you can filter by keywords in the notes
+        display_df = df[df['Definition / Notes'].str.contains(st.session_state.country, case=False, na=False)]
+    else:
+        display_df = st.session_state.shuffled_data
     practice_df = st.session_state.shuffled_data
     total_questions = 10
 
@@ -319,8 +321,9 @@ elif page == "Admin Dashboard":
 
     # 1. Google Sheets Sync
     with col1:
-        st.write("**Google Sheets API**")
-        st.success("Connected")
+        st.write("**GCP Project Sync**")
+        st.code(st.secrets["connections"]["gsheets"]["project_id"])
+        st.success("Verified")
 
     # 2. Google Drive Label API (as requested)
     with col2:
