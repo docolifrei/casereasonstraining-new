@@ -1,21 +1,63 @@
 import streamlit as st
 import pandas as pd
 from streamlit_gsheets import GSheetsConnection
+import streamlit as st
+
+# --- PREMIUM GLASS UI & FONT CONFIGURATION ---
+def apply_premium_ui():
+    st.markdown("""
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@300&display=swap');
+        html, body, [class*="css"], .stText, .stMarkdown {
+            font-family: 'Figtree', sans-serif !important;
+            font-weight: 300 !important;
+        }
+        /* Make headers also thin */
+        h1, h2, h3 { font-weight: 300 !important; }
+
+        /* Glassmorphism for the login container */
+        .login-box {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 40px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+
+apply_premium_ui()
+
+from streamlit_gsheets import GSheetsConnection
+
+# This connection now automatically uses the Service Account credentials
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 
 def save_score(name, score):
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    # We read the current data to append the new score
-    try:
-        existing_data = conn.read(ttl=0)  # ttl=0 ensures we don't use old cached data
-    except:
-        existing_data = pd.DataFrame(columns=['Name', 'Score'])
+    # Calculate Asterisks based on score (Goal: 100 points total)
+    if score >= 100:
+        asterisks = "⭐⭐⭐"
+    elif score >= 70:
+        asterisks = "⭐⭐"
+    elif score >= 40:
+        asterisks = "⭐"
+    else:
+        asterisks = "None"
 
-    new_entry = pd.DataFrame([[name, score]], columns=['Name', 'Score'])
+    # Read current data
+    try:
+        existing_data = conn.read(ttl=0)
+    except:
+        existing_data = pd.DataFrame(columns=['Name', 'Score', 'Asterisks'])
+
+    new_entry = pd.DataFrame([[name, score, asterisks]], columns=['Name', 'Score', 'Asterisks'])
     updated_data = pd.concat([existing_data, new_entry], ignore_index=True)
 
-    # This writes back to the Google Sheet
+    # Update Google Sheet
     conn.update(data=updated_data)
+    st.success(f"Score saved! You earned: {asterisks}")
 
 # --- APP CONFIGURATION ---
 st.set_page_config(page_title="Case Reasons Restructure Training", layout="wide")
@@ -49,18 +91,45 @@ def reset_quiz():
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("Menu")
 page = st.sidebar.radio("Go to", ["Login", "Explanation", "Practice", "Leaderboard"])
+if st.session_state.role == "admin":
+    menu = ["Admin Dashboard", "Explanation", "Leaderboard"]
+else:
+    menu = ["Login", "Explanation", "Practice", "Leaderboard"]
 
 # --- PAGE LOGIC ---
-if page == "Login":
-    st.title("🔐 Agent Login")
-    agent_name = st.text_input("Enter your Full Name", placeholder="e.g. John Doe")
+if 'role' not in st.session_state: st.session_state.role = None
+if 'country' not in st.session_state: st.session_state.country = None
 
-    if st.button("Login"):
-        if agent_name:
-            st.session_state.user = agent_name
-            st.success(f"Welcome, {agent_name}! You can now go to the Practice section.")
-        else:
-            st.warning("Please enter a name to track your score.")
+if page == "Login":
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+    st.title("🛡️ Docplanner Training Portal")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        username = st.text_input("Agent Name / ID")
+    with col2:
+        country = st.selectbox("Market / Country", ["Global", "Spain", "Poland", "Italy", "Brazil", "Mexico"])
+
+    role_type = st.radio("Access Level", ["Agent", "Admin Manager"], horizontal=True)
+
+    password = ""
+    if role_type == "Admin Manager":
+        password = st.text_input("Admin Security Key", type="password")
+
+    if st.button("Initialize Session"):
+        if role_type == "Admin Manager" and password == "DP2026!":  # Set your manager's key
+            st.session_state.role = "admin"
+            st.session_state.user = username
+            st.session_state.country = country
+            st.success("Admin Dashboard Unlocked")
+            st.rerun()
+        elif role_type == "Agent" and username:
+            st.session_state.role = "user"
+            st.session_state.user = username
+            st.session_state.country = country
+            st.success(f"Tailored {country} Scenarios Loading...")
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif page == "Explanation":
     st.title("📚 New Case Taxonomy Guide")
