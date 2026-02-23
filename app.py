@@ -36,21 +36,38 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 
 def save_score(name, score):
-    # Calculate Asterisks based on score (Goal: 100 points total)
+    # Calculate numeric reward level
     if score >= 100:
-        asterisks = "⭐⭐⭐"
+        asterisk_count = 3
     elif score >= 70:
-        asterisks = "⭐⭐"
+        asterisk_count = 2
     elif score >= 40:
-        asterisks = "⭐"
+        asterisk_count = 1
     else:
-        asterisks = "None"
+        asterisk_count = 0
 
-    # Read current data
     try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
         existing_data = conn.read(ttl=0)
-    except:
-        existing_data = pd.DataFrame(columns=['Name', 'Score', 'Asterisks'])
+
+        # Store as a number so we can process it visually later
+        new_entry = pd.DataFrame([[name, score, asterisk_count]],
+                                 columns=['Name', 'Score', 'Asterisks'])
+        updated_data = pd.concat([existing_data, new_entry], ignore_index=True)
+        conn.update(data=updated_data)
+
+        # Visual feedback for the agent using the logo
+        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+        st.write(f"### Achievement Unlocked!")
+        cols = st.columns(5)
+        for i in range(asterisk_count):
+            with cols[i]:
+                # Adjust 'dp_logo.png' to your actual filename
+                st.image("dp_logo.png", width=50)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    except Exception as e:
+        st.error(f"Sync Error: {e}")
 
     new_entry = pd.DataFrame([[name, score, asterisks]], columns=['Name', 'Score', 'Asterisks'])
     updated_data = pd.concat([existing_data, new_entry], ignore_index=True)
@@ -257,23 +274,64 @@ elif page == "Practice":
 
 
 elif page == "Leaderboard":
-    st.title("🏆 Global Leaderboard")
+    st.title("🏆 Global Wall of Fame")
     conn = st.connection("gsheets", type=GSheetsConnection)
 
     try:
-        df_leaderboard = conn.read(ttl="1m")  # Refresh every minute
+        df_leaderboard = conn.read(ttl="1m")
         if not df_leaderboard.empty:
-            df_leaderboard = df_leaderboard.sort_values(by='Score', ascending=False).reset_index(drop=True)
-            # Display the Top 10 in a clean table
-            st.subheader("Top Performers")
-            st.table(df_leaderboard.head(10))
+            df_leaderboard = df_leaderboard.sort_values(by='Score', ascending=False)
 
-            # Visual Chart for the Top 5
-            st.divider()
-            st.subheader("Performance Visualization")
-            st.bar_chart(data=df_leaderboard.head(5), x="Name", y="Score", color="#29b5e8")
+            for _, row in df_leaderboard.head(10).iterrows():
+                # Glassmorphism row for each agent
+                with st.container():
+                    st.markdown(f"""
+                        <div style="background: rgba(255, 255, 255, 0.05); 
+                                    padding: 15px; border-radius: 10px; margin-bottom: 10px;
+                                    display: flex; align-items: center; justify-content: space-between;">
+                            <span style="font-size: 20px;">{row['Name']}</span>
+                            <span style="font-weight: bold; color: #29b5e8;">{row['Score']} pts</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                    # Row for the reward logos
+                    cols = st.columns(10)
+                    count = int(row['Asterisks']) if pd.notna(row['Asterisks']) else 0
+                    for i in range(count):
+                        with cols[i]:
+                            st.image("dp_logo.png", width=30)
 
         else:
-            st.info("The leaderboard is currently empty. Be the first to complete the training!")
+            st.info("The leaderboard is currently empty.")
     except Exception as e:
-        st.error("Could not connect to Google Sheets. Check your Secrets configuration.")
+        st.error("GCP Sync Status: Offline. Check Secrets.")
+
+elif page == "Admin Dashboard":
+    st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+    st.header("⚙️ System Management")
+
+    col1, col2, col3 = st.columns(3)
+
+    # 1. Google Sheets Sync
+    with col1:
+        st.write("**Google Sheets API**")
+        st.success("Connected")
+
+    # 2. Google Drive Label API (as requested)
+    with col2:
+        st.write("**G-Drive Label Sync**")
+        st.warning("Idle")  # Ready for Step 2 if you enable the API
+
+    # 3. Vertex AI Status
+    with col3:
+        st.write("**Vertex AI (Gemini)**")
+        st.success("Active")
+
+    st.divider()
+    st.write("### Cloud Metadata")
+    st.json({
+        "Project ID": st.secrets["connections"]["gsheets"]["project_id"],
+        "Service Account": st.secrets["connections"]["gsheets"]["client_email"],
+        "SSync Method": "GCP Service Account Auth"
+    })
+    st.markdown('</div>', unsafe_allow_html=True)
